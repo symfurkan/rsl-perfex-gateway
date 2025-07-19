@@ -137,3 +137,51 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# MongoDB
+mongo-data/
+
+# Session files
+sessions/
+
+# Backup files
+*.bak
+*.backup
+
+# Testing
+.coverage/
+coverage.xml
+junit.xml
+
+# Local development
+.local/
+
+# Build directories
+build/
+dist/
+
+# Temporary files
+tmp/
+temp/
