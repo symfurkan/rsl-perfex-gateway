@@ -1,168 +1,130 @@
 import mongoose from 'mongoose';
-import { FastifyInstance } from 'fastify';
+import { config } from 'dotenv';
+
+// Load environment variables
+config();
 
 interface DatabaseConfig {
   uri: string;
-  options?: mongoose.ConnectOptions;
+  options: mongoose.ConnectOptions;
 }
 
-// Load environment variables
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost';
-const MONGODB_PORT = process.env.MONGODB_PORT || '27017';
-const MONGODB_DATABASE = process.env.MONGODB_DATABASE || 'rsl-perfex-gateway';
-const MONGODB_USERNAME = process.env.MONGODB_USERNAME;
-const MONGODB_PASSWORD = process.env.MONGODB_PASSWORD;
-
-// Build connection URI if not provided directly
-function buildMongoUri(): string {
-  if (MONGODB_URI) {
-    return MONGODB_URI;
-  }
+// Database configuration
+const getDatabaseConfig = (): DatabaseConfig => {
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/rsl-perfex-gateway';
   
-  const auth = MONGODB_USERNAME && MONGODB_PASSWORD 
-    ? `${MONGODB_USERNAME}:${MONGODB_PASSWORD}@` 
-    : '';
-  
-  return `mongodb://${auth}${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}`;
-}
-
-const DEFAULT_CONFIG: DatabaseConfig = {
-  uri: buildMongoUri(),
-  options: {
+  const options: mongoose.ConnectOptions = {
+    // Connection pool settings
     maxPoolSize: 10,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
-    family: 4, // Use IPv4, skip trying IPv6
+    
+    // Retry settings
     retryWrites: true,
-    retryReads: true,
+    retryReads: true
+  };
+
+  return { uri, options };
+};
+
+// Connect to MongoDB
+export const connectToDatabase = async (): Promise<void> => {
+  try {
+    const { uri, options } = getDatabaseConfig();
+    
+    // Set mongoose options
+    mongoose.set('strictQuery', false);
+    
+    // Connect to MongoDB
+    await mongoose.connect(uri, options);
+    
+    console.log('✅ Connected to MongoDB successfully');
+    console.log(`📍 Database: ${mongoose.connection.name}`);
+    console.log(`🔗 Host: ${mongoose.connection.host}:${mongoose.connection.port}`);
+    
+    // Connection event listeners
+    mongoose.connection.on('error', (error) => {
+      console.error('❌ MongoDB connection error:', error);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected');
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB reconnected');
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to connect to MongoDB:', error);
+    throw error;
   }
 };
 
-export class DatabaseConnection {
-  private static instance: DatabaseConnection;
-  private isConnected = false;
-  private config: DatabaseConfig;
-
-  private constructor(config: DatabaseConfig = DEFAULT_CONFIG) {
-    this.config = config;
-    this.setupEventListeners();
+// Check database health
+export const checkDatabaseHealth = async (): Promise<{
+  connected: boolean;
+  readyState: number;
+  name: string;
+  host: string;
+  port: number;
+}> => {
+  const connection = mongoose.connection;
+  
+  // Test connection with a simple ping
+  try {
+    await mongoose.connection.db?.admin().ping();
+  } catch (error) {
+    throw new Error(`Database ping failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+  
+  return {
+    connected: connection.readyState === 1,
+    readyState: connection.readyState,
+    name: connection.name || 'unknown',
+    host: connection.host || 'unknown',
+    port: connection.port || 0
+  };
+};
 
-  public static getInstance(config?: DatabaseConfig): DatabaseConnection {
-    if (!DatabaseConnection.instance) {
-      DatabaseConnection.instance = new DatabaseConnection(config);
-    }
-    return DatabaseConnection.instance;
+// Disconnect from database
+export const disconnectFromDatabase = async (): Promise<void> => {
+  try {
+    await mongoose.disconnect();
+    console.log('✅ Disconnected from MongoDB');
+  } catch (error) {
+    console.error('❌ Error disconnecting from MongoDB:', error);
+    throw error;
   }
+};
 
-  private setupEventListeners(): void {
-    mongoose.connection.on('connected', () => {
-      console.log('✅ MongoDB connected successfully');
-      this.isConnected = true;
-    });
+// Get connection status
+export const getConnectionStatus = (): string => {
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
+  return states[mongoose.connection.readyState as keyof typeof states] || 'unknown';
+};
 
-    mongoose.connection.on('error', (error) => {
-      console.error('❌ MongoDB connection error:', error);
-      this.isConnected = false;
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('⚠️  MongoDB disconnected');
-      this.isConnected = false;
-    });
-
-    // Graceful exit
-    process.on('SIGINT', async () => {
-      await this.disconnect();
-      process.exit(0);
-    });
-  }
-
-  public async connect(): Promise<void> {
-    try {
-      if (this.isConnected) {
-        console.log('📡 Database already connected');
-        return;
-      }
-
-      console.log('🔌 Connecting to MongoDB...');
-      await mongoose.connect(this.config.uri, this.config.options);
-      this.isConnected = true;
-    } catch (error) {
-      console.error('💥 Failed to connect to MongoDB:', error);
-      throw error;
-    }
-  }
-
-  public async disconnect(): Promise<void> {
-    try {
-      if (!this.isConnected) {
-        return;
-      }
-
-      console.log('🔌 Disconnecting from MongoDB...');
-      await mongoose.disconnect();
-      this.isConnected = false;
-      console.log('✅ MongoDB disconnected successfully');
-    } catch (error) {
-      console.error('❌ Error disconnecting from MongoDB:', error);
-      throw error;
-    }
-  }
-
-  public getConnection(): mongoose.Connection {
-    return mongoose.connection;
-  }
-
-  public isConnectionReady(): boolean {
-    return this.isConnected && mongoose.connection.readyState === 1;
-  }
-
-  public async healthCheck(): Promise<{ status: string; database: string; readyState: number }> {
-    const connection = this.getConnection();
+// Initialize database indexes (called after model registration)
+export const initializeIndexes = async (): Promise<void> => {
+  try {
+    // Get all models and ensure indexes
+    const models = mongoose.modelNames();
     
-    return {
-      status: this.isConnectionReady() ? 'connected' : 'disconnected',
-      database: connection.db?.databaseName || 'unknown',
-      readyState: connection.readyState
-    };
-  }
-}
-
-// Fastify plugin for database integration
-export async function databasePlugin(fastify: FastifyInstance): Promise<void> {
-  const db = DatabaseConnection.getInstance();
-  
-  // Connect to database
-  await db.connect();
-  
-  // Add database instance to Fastify
-  fastify.decorate('db', db);
-  
-  // Health check route
-  fastify.get('/health/database', async (_, reply) => {
-    const health = await db.healthCheck();
-    
-    if (health.status === 'connected') {
-      return reply.code(200).send(health);
-    } else {
-      return reply.code(503).send(health);
+    for (const modelName of models) {
+      const model = mongoose.model(modelName);
+      await model.ensureIndexes();
+      console.log(`✅ Indexes ensured for ${modelName}`);
     }
-  });
-  
-  // Graceful shutdown
-  fastify.addHook('onClose', async () => {
-    await db.disconnect();
-  });
-}
-
-// Export singleton instance
-export const database = DatabaseConnection.getInstance();
-
-// Type declaration for Fastify
-declare module 'fastify' {
-  interface FastifyInstance {
-    db: DatabaseConnection;
+    
+    console.log('✅ All database indexes initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize indexes:', error);
+    throw error;
   }
-}
+};
