@@ -14,6 +14,15 @@ This is a Perfex CRM Gateway project that provides an API proxy for Perfex CRM s
 - **Project**: rsl-perfex-gateway
 - **Default Assignee ID**: c1559320-b01d-4a45-b274-f571db5ecb8a (rslfrkndmrky)
 
+### Linear Task Management Guidelines
+
+When creating Linear tasks based on CLAUDE.md instructions or project requirements:
+
+1. **Create sub-issues when appropriate**: Break down complex tasks into manageable sub-issues for better tracking and organization
+2. **Update tasks as needed**: Keep Linear tasks current by updating them when requirements change or new information becomes available
+3. **Use appropriate hierarchy**: Create parent-child relationships between tasks and sub-issues to maintain clear project structure
+4. **Maintain consistency**: Ensure task descriptions align with current project status and development priorities
+
 ## Technology Stack (Planned)
 
 ### Backend
