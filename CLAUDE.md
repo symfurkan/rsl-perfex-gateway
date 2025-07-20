@@ -12,6 +12,7 @@ This is a Perfex CRM Gateway project that provides an API proxy for Perfex CRM s
 
 - **Team**: rslfrkndmrky
 - **Project**: rsl-perfex-gateway
+- **Default Assignee ID**: c1559320-b01d-4a45-b274-f571db5ecb8a (rslfrkndmrky)
 
 ## Technology Stack (Planned)
 
