@@ -1,0 +1,41 @@
+{
+  "name": "rsl-perfex-gateway",
+  "version": "1.0.0",
+  "description": "Perfex CRM Gateway - API proxy for Perfex CRM systems without native API",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=backend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspaces",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "start": "npm run start --workspace=backend",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "clean": "npm run clean --workspaces"
+  },
+  "keywords": [
+    "perfex",
+    "crm",
+    "api",
+    "gateway",
+    "proxy",
+    "task-management"
+  ],
+  "author": "Resul Furkan Demirkaya",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
